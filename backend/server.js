@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import problemRoutes from './routes/problemRoutes.js';
 
 dotenv.config();
 
@@ -13,6 +14,8 @@ app.use(express.json());
 app.get('/', (req, res) => {
   res.json({ message: 'Coding Judge API is running! 🚀' });
 });
+
+app.use('/api/problems', problemRoutes);
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
