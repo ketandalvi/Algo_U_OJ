@@ -17,6 +17,10 @@ app.get('/', (req, res) => {
 
 app.use('/api/problems', problemRoutes);
 
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: 'Route not found' });
+});
+
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
 
