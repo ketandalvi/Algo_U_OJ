@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import problemRoutes from './routes/problemRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 dotenv.config();
 
@@ -16,6 +17,7 @@ app.get('/', (req, res) => {
 });
 
 app.use('/api/problems', problemRoutes);
+app.use('/api/auth', authRoutes); 
 
 app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
