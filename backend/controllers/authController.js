@@ -105,3 +105,25 @@ export const loginUser = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+// GET /api/auth/me
+export const getMe = async (req, res) => {
+  try {
+    // req.user is already set by authMiddleware
+    // We just find by ID to get fresh data from DB
+    const user = await User.findById(req.user._id);
+
+    res.status(200).json({
+      success: true,
+      user: {
+        id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        createdAt: user.createdAt,
+      },
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
