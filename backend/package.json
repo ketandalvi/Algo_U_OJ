@@ -6,7 +6,8 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "set-admin": "cd scripts && NODE_TLS_REJECT_UNAUTHORIZED=0 node set-admin.mjs"
   },
   "keywords": [],
   "author": "",

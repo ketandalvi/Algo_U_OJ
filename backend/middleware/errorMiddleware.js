@@ -8,6 +8,13 @@ export const errorHandler = (err, req, res, next) => {
     message = Object.values(err.errors)[0].message;
   }
 
+  // Mongoose duplicate key error
+  if (err.code === 11000) {
+    statusCode = 400;
+    const field = err.keyValue ? Object.keys(err.keyValue)[0] : 'Field';
+    message = `${field.charAt(0).toUpperCase() + field.slice(1)} already exists`;
+  }
+
   // Mongoose bad ObjectId
   if (err.name === 'CastError') {
     statusCode = 404;

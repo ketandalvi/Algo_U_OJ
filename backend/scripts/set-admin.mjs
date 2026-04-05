@@ -9,17 +9,14 @@
 
 import mongoose from 'mongoose';
 import dotenv from 'dotenv';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-dotenv.config({ path: '../.env' });
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '../.env') });
 
-const userSchema = new mongoose.Schema({
-  username: String,
-  email: String,
-  password: String,
-  role: { type: String, default: 'user' },
-}, { timestamps: true });
-
-const User = mongoose.model('User', userSchema);
+// Import real model to stay consistent with production schema
+import User from '../models/User.js';
 
 try {
   console.log('🔗 Connecting to MongoDB...');

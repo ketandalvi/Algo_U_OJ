@@ -4,13 +4,27 @@ import mongoose from 'mongoose';
 // GET /api/problems — fetch all problems (public, no test cases)
 export const getAllProblems = async (req, res, next) => {
   try {
-    const problems = await Problem.find(
-      { status: 'published' },
-      'title slug difficulty tags createdAt' // only these fields
-    );
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(50, parseInt(req.query.limit) || 20);
+    const skip = (page - 1) * limit;
+
+    const [problems, total] = await Promise.all([
+      Problem.find(
+        { status: 'published' },
+        'title slug difficulty tags createdAt'
+      )
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit),
+      Problem.countDocuments({ status: 'published' }),
+    ]);
+
     res.status(200).json({
       success: true,
       count: problems.length,
+      total,
+      page,
+      pages: Math.ceil(total / limit),
       data: problems,
     });
   } catch (error) {
