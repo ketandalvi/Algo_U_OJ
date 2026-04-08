@@ -43,3 +43,14 @@ mongoose
   .catch((error) => {
     console.error('❌ MongoDB connection failed:', error.message);
   });
+
+// Graceful shutdown — important when execution engine is running
+const shutdown = async () => {
+  console.log('⏳ Shutting down gracefully...');
+  await mongoose.connection.close();
+  console.log('✅ MongoDB connection closed');
+  process.exit(0);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
