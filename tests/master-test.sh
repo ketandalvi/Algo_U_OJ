@@ -687,9 +687,141 @@ assert_test "GET /problems/:slug — draft problem → 404 (not public)" "404" \
   "$(curl -s -w "\n%{http_code}" "$BASE_URL/api/problems/draft-only-$TS")"
 
 # ================================================================
-# SECTION 11: DELETE /api/problems/:id
+# SECTION 11: SUBMISSIONS — POST /api/submissions and GET endpoints
 # ================================================================
-section "11. DELETE PROBLEM — DELETE /api/problems/:id"
+section "11. SUBMISSIONS — POST /api/submissions and GET endpoints"
+
+assert_test "POST /submissions — no token → 401" "401" \
+  "$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/submissions" \
+    -H "Content-Type: application/json" \
+    -d '{"problemId":"'$PROBLEM_ID'","code":"import sys;sys.stdin.read();print(\"[0,1]\")","language":"python"}')"
+
+assert_test "POST /submissions — invalid token → 401" "401" \
+  "$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/submissions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer invalidtoken" \
+    -d '{"problemId":"'$PROBLEM_ID'","code":"import sys;sys.stdin.read();print(\"[0,1]\")","language":"python"}')"
+
+assert_test "POST /submissions — body is array → 400" "400" \
+  "$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/submissions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -d '[]')"
+
+assert_test "POST /submissions — missing required fields → 400" "400" \
+  "$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/submissions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -d '{"problemId":"'$PROBLEM_ID'","code":"print(1)"}')"
+
+assert_test "POST /submissions — wrong types → 400" "400" \
+  "$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/submissions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -d '{"problemId":123,"code":123,"language":true}')"
+
+assert_test "POST /submissions — code empty → 400" "400" \
+  "$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/submissions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -d '{"problemId":"'$PROBLEM_ID'","code":"   ","language":"python"}')"
+
+assert_test "POST /submissions — unsupported language → 400" "400" \
+  "$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/submissions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -d '{"problemId":"'$PROBLEM_ID'","code":"print(1)","language":"ruby"}')"
+
+assert_test "POST /submissions — invalid problemId format → 400" "400" \
+  "$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/submissions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -d '{"problemId":"123","code":"print(1)","language":"python"}')"
+
+assert_test "POST /submissions — nonexistent or unpublished problem → 404" "404" \
+  "$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/submissions" \
+    -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $ADMIN_TOKEN" \
+    -d '{"problemId":"507f1f77bcf86cd799439011","code":"print(1)","language":"python"}')"
+
+SUBMISSION_RES=$(curl -s -w "\n%{http_code}" -X POST "$BASE_URL/api/submissions" \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $ADMIN_TOKEN" \
+  -d '{"problemId":"'$PROBLEM_ID'","code":"import sys;sys.stdin.read();print(\"[0,1]\")","language":"python"}')
+SUBMISSION_STATUS=$(echo "$SUBMISSION_RES" | tail -n1)
+SUBMISSION_BODY=$(echo "$SUBMISSION_RES" | sed '$d')
+SUBMISSION_ID=$(echo "$SUBMISSION_BODY" | grep -oE '"id":"[a-f0-9]{24}"' | tail -1 | grep -oE '[a-f0-9]{24}')
+TOTAL=$((TOTAL + 1))
+if [ "$SUBMISSION_STATUS" = "201" ] && [ -n "$SUBMISSION_ID" ]; then
+  echo -e "  ${GREEN}✓${NC} POST /submissions — valid submission → 201, ID: $SUBMISSION_ID"
+  PASSED=$((PASSED + 1))
+elif [ "$SUBMISSION_STATUS" = "503" ]; then
+  echo -e "  ${YELLOW}⚠ SKIP${NC} POST /submissions — valid submission → 503 (Docker unavailable)"
+  SKIPPED=$((SKIPPED + 1))
+else
+  echo -e "  ${RED}✗ FAIL${NC} POST /submissions — valid submission → status $SUBMISSION_STATUS"
+  echo "  $SUBMISSION_BODY"
+  FAILED=$((FAILED + 1))
+fi
+
+assert_test "GET /submissions/me — valid token → 200" "200" \
+  "$(curl -s -w "\n%{http_code}" "$BASE_URL/api/submissions/me" \
+    -H "Authorization: Bearer $ADMIN_TOKEN")"
+
+MY_SUBMISSIONS_BODY=$(curl -s "$BASE_URL/api/submissions/me" \
+  -H "Authorization: Bearer $ADMIN_TOKEN")
+TOTAL=$((TOTAL + 1))
+if echo "$MY_SUBMISSIONS_BODY" | grep -q '"code"'; then
+  echo -e "  ${RED}✗ FAIL${NC} GET /submissions/me — code must not be returned in list"
+  FAILED=$((FAILED + 1))
+else
+  echo -e "  ${GREEN}✓${NC} GET /submissions/me — code excluded from list"
+  PASSED=$((PASSED + 1))
+fi
+
+assert_test "GET /submissions/me — no token → 401" "401" \
+  "$(curl -s -w "\n%{http_code}" "$BASE_URL/api/submissions/me")"
+
+assert_test "GET /submissions/me — other user with no submissions → 200" "200" \
+  "$(curl -s -w "\n%{http_code}" "$BASE_URL/api/submissions/me" \
+    -H "Authorization: Bearer $USER_TOKEN")"
+
+if [ -n "$SUBMISSION_ID" ]; then
+  assert_test "GET /submissions/:id — valid own submission → 200" "200" \
+    "$(curl -s -w "\n%{http_code}" "$BASE_URL/api/submissions/$SUBMISSION_ID" \
+      -H "Authorization: Bearer $ADMIN_TOKEN")"
+
+  SUBMISSION_DETAIL_BODY=$(curl -s "$BASE_URL/api/submissions/$SUBMISSION_ID" \
+    -H "Authorization: Bearer $ADMIN_TOKEN")
+  TOTAL=$((TOTAL + 1))
+  if echo "$SUBMISSION_DETAIL_BODY" | grep -q '"username"' && echo "$SUBMISSION_DETAIL_BODY" | grep -q '"title"'; then
+    echo -e "  ${GREEN}✓${NC} GET /submissions/:id — populated user and problem metadata"
+    PASSED=$((PASSED + 1))
+  else
+    echo -e "  ${RED}✗ FAIL${NC} GET /submissions/:id — expected user and problem metadata"
+    FAILED=$((FAILED + 1))
+  fi
+
+  assert_test "GET /submissions/:id — other user forbidden → 403" "403" \
+    "$(curl -s -w "\n%{http_code}" "$BASE_URL/api/submissions/$SUBMISSION_ID" \
+      -H "Authorization: Bearer $USER_TOKEN")"
+else
+  echo -e "  ${YELLOW}⚠ SKIP${NC} GET /submissions/:id own/forbidden tests — no valid submission was created"
+  SKIPPED=$((SKIPPED + 2))
+fi
+
+assert_test "GET /submissions/:id — invalid ObjectId → 404" "404" \
+  "$(curl -s -w "\n%{http_code}" "$BASE_URL/api/submissions/notanid" \
+    -H "Authorization: Bearer $USER_TOKEN")"
+
+DUMMY_SUBMISSION_ID="507f1f77bcf86cd799439011"
+assert_test "GET /submissions/:id — no token → 401" "401" \
+  "$(curl -s -w "\n%{http_code}" "$BASE_URL/api/submissions/$DUMMY_SUBMISSION_ID")"
+
+# ================================================================
+# SECTION 12: DELETE /api/problems/:id
+# ================================================================
+section "12. DELETE PROBLEM — DELETE /api/problems/:id"
 
 assert_test "Delete — invalid ObjectId → 400" "400" \
   "$(curl -s -w "\n%{http_code}" -X DELETE "$BASE_URL/api/problems/notanid" \
@@ -713,9 +845,9 @@ if [ -n "$PROBLEM_ID" ]; then
 fi
 
 # ================================================================
-# SECTION 12: Misc — Unknown Routes
+# SECTION 13: Misc — Unknown Routes
 # ================================================================
-section "12. MISC — Unknown Routes"
+section "13. MISC — Unknown Routes"
 
 assert_test "GET /api/unknown → 404" "404" \
   "$(curl -s -w "\n%{http_code}" "$BASE_URL/api/unknown")"

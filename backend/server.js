@@ -4,6 +4,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import problemRoutes from './routes/problemRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import submissionRoutes from './routes/submissionRoutes.js'; 
 import { errorHandler } from './middleware/errorMiddleware.js';
 
 
@@ -21,6 +22,7 @@ app.get('/', (_req, res) => {
 });
 app.use('/api/problems', problemRoutes);
 app.use('/api/auth', authRoutes);
+app.use('/api/submissions', submissionRoutes);
 app.use((_req, res) => {
   res.status(404).json({ success: false, message: 'Route not found' });
 });
@@ -28,6 +30,17 @@ app.use(errorHandler);
 
 const PORT = process.env.PORT || 5000;
 const MONGO_URI = process.env.MONGO_URI;
+
+// Graceful shutdown — important when execution engine is running
+const shutdown = async () => {
+  console.log('⏳ Shutting down gracefully...');
+  await mongoose.connection.close();
+  console.log('✅ MongoDB connection closed');
+  process.exit(0);
+};
+
+process.on('SIGTERM', shutdown);
+process.on('SIGINT', shutdown);
 
 mongoose
   .connect(MONGO_URI, {
@@ -43,14 +56,3 @@ mongoose
   .catch((error) => {
     console.error('❌ MongoDB connection failed:', error.message);
   });
-
-// Graceful shutdown — important when execution engine is running
-const shutdown = async () => {
-  console.log('⏳ Shutting down gracefully...');
-  await mongoose.connection.close();
-  console.log('✅ MongoDB connection closed');
-  process.exit(0);
-};
-
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);

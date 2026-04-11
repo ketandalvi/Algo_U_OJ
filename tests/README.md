@@ -15,7 +15,7 @@ Then run from the **project root**:
 bash tests/master-test.sh
 ```
 
-## What's Covered (98 tests)
+## What's Covered (100+ tests)
 
 | Section | Tests |
 |---|---|
@@ -29,6 +29,7 @@ bash tests/master-test.sh
 | Create — optional fields | tags, starterCode, timeLimit, memoryLimit boundary values |
 | Update Problem | invalid ObjectId, nonexistent, all field validations, valid updates |
 | GET Problems | list (testCases excluded), by slug (testCases excluded), slug normalization, draft hidden |
+| Submission API | auth, validation, unsupported language, invalid IDs, publish-only problem, successful submission, list & detail access |
 | Delete Problem | invalid ObjectId, nonexistent, valid delete, double-delete |
 | Unknown Routes | 404 for unregistered paths |
 
